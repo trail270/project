@@ -1,0 +1,187 @@
+//similar
+/*
+$AMJ000100100002
+GD50GD60LR50CR60BT07PD20H   PD10H       
+MATCHED                             
+NOT MATCHED                         
+$DTA
+HELO
+HELO
+$END
+*/
+
+#include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
+
+char M[200][4], IR[4], R[4];
+int IC;
+bool C;
+int SI;
+
+FILE *fin, *fout;
+char inputFileName[100];
+
+void init() {
+    int i, j;
+
+    for (i = 0; i < 200; i++) {
+        for (j = 0; j < 4; j++) {
+            M[i][j] = '_';
+        }
+    }
+
+    for (i = 0; i < 4; i++) {
+        IR[i] = '_';
+        R[i] = '_';
+    }
+
+    IC = 0;
+    C = false;
+    SI = 0;
+}
+
+void setInputFile(char name[]) {
+    strcpy(inputFileName, name);
+}
+
+void readData(int VA) {
+    char line[200];
+
+    if (fgets(line, sizeof(line), fin) == NULL)
+        return;
+
+    line[strcspn(line, "\n")] = '\0';
+
+    if (strncmp(line, "$END", 4) == 0)
+        return;
+
+    int k = 0;
+
+    for (int i = 0; i < strlen(line) && k < 40; i++) {
+        M[VA + k / 4][k % 4] = line[i];
+        k++;
+    }
+
+    SI = 0;
+}
+
+void writeData(int VA) {
+    for (int i = 0; i < 10; i++) {
+        for (int j = 0; j < 4; j++) {
+            char ch = M[VA + i][j];
+
+            if (ch == '_') {
+                fprintf(fout, " ");
+                printf(" ");
+            } else {
+                fprintf(fout, "%c", ch);
+                printf("%c", ch);
+            }
+        }
+    }
+
+    fprintf(fout, "\n");
+    printf("\n");
+
+    SI = 0;
+}
+
+void executeUserProgram() {
+    while (1) {
+        for (int i = 0; i < 4; i++) {
+            IR[i] = M[IC][i];
+        }
+
+        IC++;
+
+        if (IR[0] == 'H') {
+            break;
+        }
+
+        int VA = (IR[2] - '0') * 10 + (IR[3] - '0');
+
+        if (IR[0] == 'G' && IR[1] == 'D') {
+            SI = 1;
+            readData(VA);
+        }
+        else if (IR[0] == 'P' && IR[1] == 'D') {
+            SI = 2;
+            writeData(VA);
+        }
+        else if (IR[0] == 'L' && IR[1] == 'R') {
+            for (int i = 0; i < 4; i++) {
+                R[i] = M[VA][i];
+            }
+        }
+        else if (IR[0] == 'C' && IR[1] == 'R') {
+            C = true;
+
+            for (int i = 0; i < 4; i++) {
+                if (R[i] != M[VA][i]) {
+                    C = false;
+                    break;
+                }
+            }
+        }
+        else if (IR[0] == 'B' && IR[1] == 'T') {
+            if (C) {
+                IC = VA;
+            }
+        }
+    }
+}
+
+void load() {
+    if (strlen(inputFileName) == 0)
+        return;
+
+    fin = fopen(inputFileName, "r");
+    fout = fopen("output.txt", "w");
+
+    if (fin == NULL)
+        return;
+
+    char line[200];
+    int memoryIndex = 0;
+
+    while (fgets(line, sizeof(line), fin) != NULL) {
+        line[strcspn(line, "\n")] = '\0';
+
+        if (strncmp(line, "$AMJ", 4) == 0) {
+            init();
+            memoryIndex = 0;
+        }
+        else if (strncmp(line, "$DTA", 4) == 0) {
+            IC = 0;
+            executeUserProgram();
+        }
+        else if (strncmp(line, "$END", 4) == 0) {
+            continue;
+        }
+        else {
+            int k = 0;
+
+            for (int i = 0; i < strlen(line) && k < 40; i++) {
+                M[memoryIndex + k / 4][k % 4] = line[i];
+                k++;
+            }
+
+            memoryIndex += 10;
+        }
+    }
+
+    fclose(fin);
+    fclose(fout);
+}
+
+int main() {
+    inputFileName[0] = '\0';
+
+    init();
+
+    setInputFile("input.txt");
+    load();
+
+    return 0;
+}
