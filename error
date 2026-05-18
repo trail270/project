@@ -1,0 +1,483 @@
+// Error
+/*$AMJ000100100002
+GD20PD20H
+$DTA
+Hello World                             
+$END*/
+
+#include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
+#include <stdlib.h>
+
+char M[300][4], IR[4], R[4];
+int IC;
+bool C;
+int SI, PI, TI;
+int PTR;
+int TTC, LLC, TTL, TLL;
+bool frameUsed[30];
+bool terminated;
+
+FILE *fin, *fout;
+char inputFileName[100];
+
+void init();
+void setInputFile(char name[]);
+int allocate();
+void load();
+void startExecution();
+int addressMap(int VA);
+int getVA();
+bool isValidOpcode();
+void executeUserProgram();
+void executeMOS();
+void readData();
+void writeData();
+void terminateProgram(int EM);
+void handlePageFault();
+
+void init() {
+    for (int i = 0; i < 300; i++) {
+        for (int j = 0; j < 4; j++) {
+            M[i][j] = '_';
+        }
+    }
+
+    for (int i = 0; i < 30; i++) {
+        frameUsed[i] = false;
+    }
+
+    for (int i = 0; i < 4; i++) {
+        IR[i] = '_';
+        R[i] = '_';
+    }
+
+    IC = 0;
+    C = false;
+    SI = PI = TI = 0;
+    TTC = LLC = 0;
+    TTL = TLL = 0;
+    PTR = 0;
+    terminated = false;
+}
+
+void setInputFile(char name[]) {
+    strcpy(inputFileName, name);
+}
+
+int allocate() {
+    for (int i = 0; i < 30; i++) {
+        if (!frameUsed[i]) {
+            frameUsed[i] = true;
+            return i;
+        }
+    }
+    return -1;
+}
+
+void load() {
+    if (strlen(inputFileName) == 0) {
+        printf("Error: No input file specified.\n");
+        return;
+    }
+
+    fin = fopen(inputFileName, "r");
+    fout = fopen("output.txt", "w");
+
+    if (fin == NULL) {
+        printf("Error: Could not open %s\n", inputFileName);
+        return;
+    }
+
+    char line[200];
+
+    while (fgets(line, sizeof(line), fin) != NULL) {
+        line[strcspn(line, "\n")] = '\0';
+
+        if (strncmp(line, "$AMJ", 4) == 0) {
+            init();
+
+            char ttlStr[5], tllStr[5];
+            strncpy(ttlStr, line + 8, 4);
+            strncpy(tllStr, line + 12, 4);
+            ttlStr[4] = '\0';
+            tllStr[4] = '\0';
+
+            TTL = atoi(ttlStr);
+            TLL = atoi(tllStr);
+
+            int frame = allocate();
+            PTR = frame * 10;
+
+            for (int i = 0; i < 10; i++) {
+                for (int j = 0; j < 4; j++) {
+                    M[PTR + i][j] = '*';
+                }
+            }
+
+            printf("\n[System]: New Job Loaded. TTL: %d TLL: %d\n", TTL, TLL);
+            fprintf(fout, "\n[System]: New Job Loaded. TTL: %d TLL: %d\n", TTL, TLL);
+        }
+        else if (strncmp(line, "$DTA", 4) == 0) {
+            startExecution();
+        }
+        else if (strncmp(line, "$END", 4) == 0) {
+            printf("[System]: Job Ended.\n");
+            fprintf(fout, "[System]: Job Ended.\n");
+            continue;
+        }
+        else {
+            int frame = allocate();
+            int pageEntry = -1;
+
+            for (int i = 0; i < 10; i++) {
+                if (M[PTR + i][0] == '*') {
+                    pageEntry = i;
+                    break;
+                }
+            }
+
+            if (pageEntry != -1) {
+                M[PTR + pageEntry][0] = '0';
+                M[PTR + pageEntry][1] = '0';
+                M[PTR + pageEntry][2] = (frame / 10) + '0';
+                M[PTR + pageEntry][3] = (frame % 10) + '0';
+
+                int k = 0;
+
+                for (int i = 0; i < strlen(line) && k < 40; i++) {
+                    M[frame * 10 + k / 4][k % 4] = line[i];
+                    k++;
+                }
+            }
+        }
+    }
+
+    fclose(fin);
+    fclose(fout);
+}
+
+void startExecution() {
+    IC = 0;
+    executeUserProgram();
+}
+
+int addressMap(int VA) {
+    if (VA < 0 || VA >= 100) {
+        PI = 2;
+        return -1;
+    }
+
+    int page = VA / 10;
+    int offset = VA % 10;
+
+    if (M[PTR + page][0] == '*') {
+        PI = 3;
+        return -1;
+    }
+
+    int frame = (M[PTR + page][2] - '0') * 10 +
+                (M[PTR + page][3] - '0');
+
+    return frame * 10 + offset;
+}
+
+int getVA() {
+    if (IR[2] < '0' || IR[2] > '9' || IR[3] < '0' || IR[3] > '9') {
+        PI = 2;
+        return -1;
+    }
+
+    return (IR[2] - '0') * 10 + (IR[3] - '0');
+}
+
+bool isValidOpcode() {
+    if (IR[0] == 'H')
+        return true;
+
+    if (IR[0] == 'L' && IR[1] == 'R')
+        return true;
+    if (IR[0] == 'S' && IR[1] == 'R')
+        return true;
+    if (IR[0] == 'C' && IR[1] == 'R')
+        return true;
+    if (IR[0] == 'B' && IR[1] == 'T')
+        return true;
+    if (IR[0] == 'G' && IR[1] == 'D')
+        return true;
+    if (IR[0] == 'P' && IR[1] == 'D')
+        return true;
+
+    return false;
+}
+
+void executeUserProgram() {
+    while (!terminated) {
+        int RA = addressMap(IC);
+
+        if (PI != 0) {
+            executeMOS();
+
+            if (terminated)
+                break;
+
+            continue;
+        }
+
+        for (int i = 0; i < 4; i++) {
+            IR[i] = M[RA][i];
+        }
+
+        IC++;
+
+        if (IR[0] == 'H') {
+            SI = 3;
+            executeMOS();
+            break;
+        }
+
+        if (!isValidOpcode()) {
+            PI = 1;
+            executeMOS();
+            continue;
+        }
+
+        int VA = getVA();
+
+        if (PI != 0) {
+            executeMOS();
+            continue;
+        }
+
+        int operandRA = addressMap(VA);
+
+        if (PI != 0) {
+            executeMOS();
+
+            if (terminated)
+                break;
+
+            if (PI == 0)
+                IC--;
+
+            continue;
+        }
+
+        if (IR[0] == 'L' && IR[1] == 'R') {
+            for (int i = 0; i < 4; i++) {
+                R[i] = M[operandRA][i];
+            }
+        }
+        else if (IR[0] == 'S' && IR[1] == 'R') {
+            for (int i = 0; i < 4; i++) {
+                M[operandRA][i] = R[i];
+            }
+        }
+        else if (IR[0] == 'C' && IR[1] == 'R') {
+            C = true;
+
+            for (int i = 0; i < 4; i++) {
+                if (R[i] != M[operandRA][i]) {
+                    C = false;
+                    break;
+                }
+            }
+        }
+        else if (IR[0] == 'B' && IR[1] == 'T') {
+            if (C) {
+                IC = VA;
+            }
+        }
+        else if (IR[0] == 'G' && IR[1] == 'D') {
+            SI = 1;
+            executeMOS();
+        }
+        else if (IR[0] == 'P' && IR[1] == 'D') {
+            SI = 2;
+            executeMOS();
+        }
+
+        TTC++;
+
+        if (TTC >= TTL) {
+            TI = 2;
+            executeMOS();
+        }
+    }
+}
+
+void executeMOS() {
+    if (TI == 0) {
+        if (PI == 1) {
+            terminateProgram(4);
+        }
+        else if (PI == 2) {
+            terminateProgram(5);
+        }
+        else if (PI == 3) {
+            if ((IR[0] == 'G' && IR[1] == 'D') ||
+                (IR[0] == 'S' && IR[1] == 'R')) {
+                handlePageFault();
+                PI = 0;
+            } else {
+                terminateProgram(6);
+            }
+        }
+        else if (SI == 1) {
+            readData();
+        }
+        else if (SI == 2) {
+            writeData();
+        }
+        else if (SI == 3) {
+            terminateProgram(0);
+        }
+    } else {
+        if (PI != 0) {
+            terminateProgram(3);
+        }
+        else if (SI == 1) {
+            terminateProgram(3);
+        }
+        else if (SI == 2) {
+            writeData();
+            terminateProgram(3);
+        }
+        else if (SI == 3) {
+            terminateProgram(0);
+        }
+        else {
+            terminateProgram(3);
+        }
+    }
+
+    SI = PI = 0;
+}
+
+void readData() {
+    char line[200];
+
+    if (fgets(line, sizeof(line), fin) == NULL) {
+        terminateProgram(1);
+        return;
+    }
+
+    line[strcspn(line, "\n")] = '\0';
+
+    if (strncmp(line, "$END", 4) == 0) {
+        terminateProgram(1);
+        return;
+    }
+
+    int VA = getVA();
+    int RA = addressMap(VA);
+
+    int k = 0;
+
+    for (int i = 0; i < strlen(line) && k < 40; i++) {
+        M[RA + k / 4][k % 4] = line[i];
+        k++;
+    }
+}
+
+void writeData() {
+    LLC++;
+
+    if (LLC > TLL) {
+        terminateProgram(2);
+        return;
+    }
+
+    int VA = getVA();
+    int RA = addressMap(VA);
+
+    for (int i = 0; i < 10; i++) {
+        for (int j = 0; j < 4; j++) {
+            char ch = M[RA + i][j];
+
+            if (ch == '_') {
+                fprintf(fout, " ");
+                printf(" ");
+            } else {
+                fprintf(fout, "%c", ch);
+                printf("%c", ch);
+            }
+        }
+    }
+
+    fprintf(fout, "\n");
+    printf("\n");
+}
+
+void terminateProgram(int EM) {
+    if (terminated)
+        return;
+
+    char msg[100];
+
+    switch (EM) {
+        case 0:
+            strcpy(msg, "No Error");
+            break;
+        case 1:
+            strcpy(msg, "Out of Data");
+            break;
+        case 2:
+            strcpy(msg, "Line Limit Exceeded");
+            break;
+        case 3:
+            strcpy(msg, "Time Limit Exceeded");
+            break;
+        case 4:
+            strcpy(msg, "Operation Code Error");
+            break;
+        case 5:
+            strcpy(msg, "Operand Error");
+            break;
+        case 6:
+            strcpy(msg, "Invalid Page Fault");
+            break;
+        default:
+            strcpy(msg, "Unknown Error");
+    }
+
+    fprintf(fout, "\nProgram Terminated: %s\nIC=%d TTC=%d LLC=%d\n",
+            msg, IC, TTC, LLC);
+
+    printf("\nProgram Terminated: %s\nIC=%d TTC=%d LLC=%d\n",
+           msg, IC, TTC, LLC);
+
+    terminated = true;
+}
+
+void handlePageFault() {
+    int VA = getVA();
+    int page = VA / 10;
+    int frame = allocate();
+
+    if (frame == -1) {
+        printf("Memory Full!\n");
+        fprintf(fout, "Memory Full!\n");
+        return;
+    }
+
+    M[PTR + page][0] = '0';
+    M[PTR + page][1] = '0';
+    M[PTR + page][2] = frame / 10 + '0';
+    M[PTR + page][3] = frame % 10 + '0';
+
+    printf("[System]: Page Fault Handled. Page %d -> Frame %d\n", page, frame);
+    fprintf(fout, "[System]: Page Fault Handled. Page %d -> Frame %d\n", page, frame);
+}
+
+int main() {
+    inputFileName[0] = '\0';
+
+    init();
+
+    setInputFile("input2.txt");
+    load();
+
+    return 0;
+}
