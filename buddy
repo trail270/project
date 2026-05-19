@@ -1,0 +1,105 @@
+//buddy 
+#include <stdio.h>
+
+#define MAX 100
+
+int part[MAX];
+int used[MAX];
+int req_val[MAX];  
+int n = 1;
+
+void show()
+{
+    int i;
+    printf("\nCurrent Partitions:\n");
+    printf("---------------------------------\n");
+    printf("No.\tSize\tStatus\n");
+    printf("---------------------------------\n");
+
+    for (i = 0; i < n; i++)
+    {
+        printf("%d\t%d\t", i + 1, part[i]);
+
+        if (used[i] == 1)
+            printf("Allocated (%d)\n", req_val[i]);   // UPDATED
+        else
+            printf("Free\n");
+    }
+    printf("---------------------------------\n");
+}
+
+void insert_part(int p, int val)
+{
+    int i;
+    for (i = n; i > p + 1; i--)
+    {
+        part[i] = part[i - 1];
+        used[i] = used[i - 1];
+        req_val[i] = req_val[i - 1];
+    }
+    part[p + 1] = val;
+    used[p + 1] = 0;
+    req_val[p + 1] = 0;
+    n++;
+}
+
+void allocate(int req)
+{
+    int i, ok = 0;
+
+    for (i = 0; i < n; i++)
+    {
+        if (used[i] == 0 && part[i] >= req)
+        {
+            while (part[i] / 2 >= req)
+            {
+                int h = part[i] / 2;
+                part[i] = h;
+                insert_part(i, h);
+
+                printf("\nSplit: %d -> %d + %d\n", h * 2, h, h);
+                show();
+            }
+
+            used[i] = 1;
+            req_val[i] = req;  
+
+            printf("\nRequest %d allocated in block %d\n", req, part[i]);
+            ok = 1;
+            break;
+        }
+    }
+
+    if (!ok)
+        printf("\nRequest %d cannot be allocated\n", req);
+}
+
+int main()
+{
+    int total, m, req, i;
+
+    printf("Enter initial block size: ");
+    scanf("%d", &total);
+
+    part[0] = total;
+    used[0] = 0;
+    req_val[0] = 0;
+
+    printf("Enter number of requests: ");
+    scanf("%d", &m);
+
+    show();
+
+    for (i = 1; i <= m; i++)
+    {
+        printf("\nEnter request %d: ", i);
+        scanf("%d", &req);
+
+        allocate(req);
+
+        printf("\nAfter step %d:\n", i);
+        show();
+    }
+
+    return 0;
+}
