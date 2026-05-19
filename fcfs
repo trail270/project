@@ -1,0 +1,81 @@
+//fcfs
+#include <stdio.h>
+
+#define MAX 20
+
+int queue[MAX];
+int front = -1, rear = -1;
+
+void enqueue(int process) {
+    if (rear == MAX - 1) {
+        printf("Queue is full\n");
+        return;
+    }
+
+    if (front == -1) {
+        front = 0;
+    }
+
+    rear++;
+    queue[rear] = process;
+}
+
+int dequeue() {
+    if (front == -1 || front > rear) {
+        return -1;
+    }
+
+    return queue[front++];
+}
+
+int main() {
+    int n;
+    int at[MAX], bt[MAX], ct[MAX], tat[MAX], wt[MAX];
+    int i, time = 0;
+    float avgWT = 0, avgTAT = 0;
+
+    printf("Enter number of processes: ");
+    scanf("%d", &n);
+
+    for (i = 0; i < n; i++) {
+        printf("Enter Arrival Time and Burst Time for P%d: ", i + 1);
+        scanf("%d %d", &at[i], &bt[i]);
+
+        enqueue(i);
+    }
+
+    printf("\nGantt Chart:\n");
+
+    while (front <= rear) {
+        int p = dequeue();
+
+        if (time < at[p]) {
+            time = at[p];
+        }
+
+        printf("| P%d ", p + 1);
+
+        ct[p] = time + bt[p];
+        time = ct[p];
+
+        tat[p] = ct[p] - at[p];
+        wt[p] = tat[p] - bt[p];
+
+        avgWT += wt[p];
+        avgTAT += tat[p];
+    }
+
+    printf("|\n");
+
+    printf("\nProcess\tAT\tBT\tCT\tTAT\tWT\n");
+
+    for (i = 0; i < n; i++) {
+        printf("P%d\t%d\t%d\t%d\t%d\t%d\n",
+               i + 1, at[i], bt[i], ct[i], tat[i], wt[i]);
+    }
+
+    printf("\nAverage Waiting Time = %.2f", avgWT / n);
+    printf("\nAverage Turnaround Time = %.2f\n", avgTAT / n);
+
+    return 0;
+}
