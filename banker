@@ -1,0 +1,210 @@
+//bankers 
+#include <stdio.h>
+
+int main()
+{
+    int NoP, NoR;
+
+    printf("Enter number of processes: ");
+    scanf("%d", &NoP);
+
+    printf("Enter number of resources: ");
+    scanf("%d", &NoR);
+
+    int Available[NoR];
+    int Max[NoP][NoR];
+    int Allocation[NoP][NoR];
+    int Need[NoP][NoR];
+    int Work[NoR];
+    int Finish[NoP];
+    int SafeSeq[NoP];
+    int TotalResources[NoR];
+
+    printf("\nEnter Available:\n");
+    for (int j = 0; j < NoR; j++)
+    {
+        scanf("%d", &Available[j]);
+        Work[j] = Available[j];
+        TotalResources[j] = Available[j];
+    }
+
+    printf("\nEnter Max matrix:\n");
+    for (int i = 0; i < NoP; i++)
+        for (int j = 0; j < NoR; j++)
+            scanf("%d", &Max[i][j]);
+
+    printf("\nEnter Allocation matrix:\n");
+    for (int i = 0; i < NoP; i++)
+        for (int j = 0; j < NoR; j++)
+        {
+            scanf("%d", &Allocation[i][j]);
+            TotalResources[j] = TotalResources[j] + Allocation[i][j];
+        }
+
+    for (int i = 0; i < NoP; i++)
+        for (int j = 0; j < NoR; j++)
+            Need[i][j] = Max[i][j] - Allocation[i][j];
+
+    for (int i = 0; i < NoP; i++)
+        Finish[i] = 0;
+
+    printf("\n=================================================================\n");
+    printf("Process\t MAX\t\t ALLOCATION\t\t NEED\n");
+    printf("=================================================================\n");
+
+    for (int i = 0; i < NoP; i++)
+    {
+        printf("P%d\t ", i);
+
+        for (int j = 0; j < NoR; j++)
+            printf("%d ", Max[i][j]);
+
+        printf("\t\t ");
+
+        for (int j = 0; j < NoR; j++)
+            printf("%d ", Allocation[i][j]);
+
+        printf("\t\t ");
+
+        for (int j = 0; j < NoR; j++)
+            printf("%d ", Need[i][j]);
+
+        printf("\n");
+    }
+
+    int count = 0;
+    int iteration = 1;
+
+    printf("\nInitial Work = ");
+    for (int j = 0; j < NoR; j++)
+        printf("%d ", Work[j]);
+    printf("\n");
+
+    printf("Total Resources                 = ");
+    for (int j = 0; j < NoR; j++)
+        printf("%d ", TotalResources[j]);
+    printf("\n");
+
+    while (count < NoP)
+    {
+        int done = 0;
+
+        printf("\n================ Iteration %d ================\n", iteration);
+        printf("Current Work = ");
+        for (int j = 0; j < NoR; j++)
+            printf("%d ", Work[j]);
+        printf("\n");
+
+        for (int i = 0; i < NoP; i++)
+        {
+            if (Finish[i] == 0)
+            {
+                int canExecute = 1;
+
+                printf("\nChecking P%d: ", i);
+
+                for (int j = 0; j < NoR; j++)
+                {
+                    if (Need[i][j] <= Work[j])
+                    {
+                        continue;
+                    }
+                    else
+                    {
+                        canExecute = 0;
+                        break;
+                    }
+                }
+
+                if (canExecute)
+                {
+                    printf("Need <= Work  ---> SATISFIED\n");
+                    printf("P%d can execute\n", i);
+
+                    printf("New Work = Work + Allocation[%d] = ", i);
+                    for (int j = 0; j < NoR; j++)
+                    {
+                        Work[j] = Work[j] + Allocation[i][j];
+                        printf("%d ", Work[j]);
+                    }
+                    printf("\n");
+
+                    Finish[i] = 1;
+                    SafeSeq[count++] = i;
+                    done = 1;
+                }
+                else
+                {
+                    printf("Need <= Work  ---> NOT SATISFIED\n");
+                    printf("P%d cannot execute now\n", i);
+
+                    printf("Need of P%d = ", i);
+                    for (int j = 0; j < NoR; j++)
+                        printf("%d ", Need[i][j]);
+
+                    printf(" | Work = ");
+                    for (int j = 0; j < NoR; j++)
+                        printf("%d ", Work[j]);
+
+                    printf("\n");
+                }
+            }
+            else
+            {
+                printf("\nChecking P%d: Already Finished\n", i);
+            }
+        }
+
+        if (!done)
+        {
+            printf("\nNo process could be executed in this iteration.\n");
+            break;
+        }
+
+        iteration++;
+    }
+
+    if (count == NoP)
+    {
+        printf("\nSystem is in SAFE STATE\n");
+        printf("Safe Sequence: ");
+        for (int i = 0; i < NoP; i++)
+        {
+            printf("P%d", SafeSeq[i]);
+            if (i != NoP - 1)
+                printf(" -> ");
+        }
+        printf("\n");
+
+        printf("\nFinal Work After All Iterations = ");
+        for (int j = 0; j < NoR; j++)
+            printf("%d ", Work[j]);
+        printf("\n");
+
+        printf("Total Resources                 = ");
+        for (int j = 0; j < NoR; j++)
+            printf("%d ", TotalResources[j]);
+        printf("\n");
+
+        int match = 1;
+        for (int j = 0; j < NoR; j++)
+        {
+            if (Work[j] != TotalResources[j])
+            {
+                match = 0;
+                break;
+            }
+        }
+
+        if (match)
+            printf("Final Work matches Total Resources\n");
+        else
+            printf("Final Work does NOT match Total Resources\n");
+    }
+    else
+    {
+        printf("\nSystem is NOT in safe state\n");
+    }
+
+    return 0;
+}
