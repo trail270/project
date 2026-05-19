@@ -1,0 +1,252 @@
+//disk 
+#include <stdio.h>
+#include <stdlib.h>
+
+#define MAX 100
+
+struct Disk {
+    int request[MAX];
+    int n;
+    int head;
+    int diskSize;
+};
+
+void fcfs(struct Disk d) {
+    int total = 0;
+    int current = d.head;
+
+    printf("\nFCFS Order: %d", current);
+
+    for (int i = 0; i < d.n; i++) {
+        total += abs(d.request[i] - current);
+        current = d.request[i];
+        printf(" -> %d", current);
+    }
+
+    printf("\nTotal Head Movement = %d\n", total);
+}
+
+void sstf(struct Disk d) {
+    int visited[MAX] = {0};
+    int total = 0;
+    int current = d.head;
+
+    printf("\nSSTF Order: %d", current);
+
+    for (int count = 0; count < d.n; count++) {
+        int minDist = 9999;
+        int index = -1;
+
+        for (int i = 0; i < d.n; i++) {
+            if (!visited[i]) {
+                int dist = abs(d.request[i] - current);
+
+                if (dist < minDist) {
+                    minDist = dist;
+                    index = i;
+                }
+            }
+        }
+
+        visited[index] = 1;
+        total += minDist;
+        current = d.request[index];
+
+        printf(" -> %d", current);
+    }
+
+    printf("\nTotal Head Movement = %d\n", total);
+}
+
+void sort(int arr[], int n) {
+    for (int i = 0; i < n - 1; i++) {
+        for (int j = 0; j < n - i - 1; j++) {
+            if (arr[j] > arr[j + 1]) {
+                int temp = arr[j];
+                arr[j] = arr[j + 1];
+                arr[j + 1] = temp;
+            }
+        }
+    }
+}
+
+void scan(struct Disk d) {
+    int arr[MAX];
+    int total = 0;
+    int current = d.head;
+    int direction;
+
+    printf("Enter direction for SCAN (1 for right, 0 for left): ");
+    scanf("%d", &direction);
+
+    for (int i = 0; i < d.n; i++)
+        arr[i] = d.request[i];
+
+    arr[d.n] = d.head;
+    arr[d.n + 1] = 0;
+    arr[d.n + 2] = d.diskSize - 1;
+
+    int size = d.n + 3;
+    sort(arr, size);
+
+    int pos;
+    for (int i = 0; i < size; i++) {
+        if (arr[i] == d.head) {
+            pos = i;
+            break;
+        }
+    }
+
+    printf("\nSCAN Order: %d", current);
+
+    if (direction == 1) {
+        for (int i = pos + 1; i < size; i++) {
+            total += abs(arr[i] - current);
+            current = arr[i];
+            printf(" -> %d", current);
+        }
+
+        for (int i = pos - 1; i >= 0; i--) {
+            total += abs(arr[i] - current);
+            current = arr[i];
+            printf(" -> %d", current);
+        }
+    } else {
+        for (int i = pos - 1; i >= 0; i--) {
+            total += abs(arr[i] - current);
+            current = arr[i];
+            printf(" -> %d", current);
+        }
+
+        for (int i = pos + 1; i < size; i++) {
+            total += abs(arr[i] - current);
+            current = arr[i];
+            printf(" -> %d", current);
+        }
+    }
+
+    printf("\nTotal Head Movement = %d\n", total);
+}
+
+void cscan(struct Disk d) {
+    int arr[MAX];
+    int total = 0;
+    int current = d.head;
+    int direction;
+
+    printf("Enter direction for C-SCAN (1 for right, 0 for left): ");
+    scanf("%d", &direction);
+
+    for (int i = 0; i < d.n; i++)
+        arr[i] = d.request[i];
+
+    arr[d.n] = d.head;
+    arr[d.n + 1] = 0;
+    arr[d.n + 2] = d.diskSize - 1;
+
+    int size = d.n + 3;
+    sort(arr, size);
+
+    int pos;
+    for (int i = 0; i < size; i++) {
+        if (arr[i] == d.head) {
+            pos = i;
+            break;
+        }
+    }
+
+    printf("\nC-SCAN Order: %d", current);
+
+    if (direction == 1) {
+        for (int i = pos + 1; i < size; i++) {
+            total += abs(arr[i] - current);
+            current = arr[i];
+            printf(" -> %d", current);
+        }
+
+        total += abs(current - 0);
+        current = 0;
+        printf(" -> %d", current);
+
+        for (int i = 1; i < pos; i++) {
+            total += abs(arr[i] - current);
+            current = arr[i];
+            printf(" -> %d", current);
+        }
+    } else {
+        for (int i = pos - 1; i >= 0; i--) {
+            total += abs(arr[i] - current);
+            current = arr[i];
+            printf(" -> %d", current);
+        }
+
+        total += abs(current - (d.diskSize - 1));
+        current = d.diskSize - 1;
+        printf(" -> %d", current);
+
+        for (int i = size - 2; i > pos; i--) {
+            total += abs(arr[i] - current);
+            current = arr[i];
+            printf(" -> %d", current);
+        }
+    }
+
+    printf("\nTotal Head Movement = %d\n", total);
+}
+
+int main() {
+    struct Disk d;
+    int choice;
+
+    printf("Enter number of disk requests: ");
+    scanf("%d", &d.n);
+
+    printf("Enter disk requests:\n");
+    for (int i = 0; i < d.n; i++)
+        scanf("%d", &d.request[i]);
+
+    printf("Enter initial head position: ");
+    scanf("%d", &d.head);
+
+    printf("Enter disk size: ");
+    scanf("%d", &d.diskSize);
+
+    do {
+        printf("\n===== Disk Scheduling =====\n");
+        printf("1. FCFS\n");
+        printf("2. SSTF\n");
+        printf("3. SCAN\n");
+        printf("4. C-SCAN\n");
+        printf("5. Exit\n");
+        printf("Enter choice: ");
+        scanf("%d", &choice);
+
+        switch (choice) {
+            case 1:
+                fcfs(d);
+                break;
+
+            case 2:
+                sstf(d);
+                break;
+
+            case 3:
+                scan(d);
+                break;
+
+            case 4:
+                cscan(d);
+                break;
+
+            case 5:
+                printf("Exiting...\n");
+                break;
+
+            default:
+                printf("Invalid choice\n");
+        }
+
+    } while (choice != 5);
+
+    return 0;
+}
