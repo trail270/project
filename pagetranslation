@@ -1,0 +1,118 @@
+// page translation
+#include <stdio.h>
+
+int main()
+{
+    int ch;
+
+    do
+    {
+        printf("\n===== Address Translation =====\n");
+        printf("1. Paging\n");
+        printf("2. Segmentation\n");
+        printf("3. Exit\n");
+        printf("Enter choice: ");
+        scanf("%d", &ch);
+
+        if (ch == 1)
+        {
+            int page_size, n, i;
+            int page_table[100];
+            int logical_address;
+            int page_no, offset, frame_no, physical_address;
+
+            printf("\n--- Paging ---\n");
+            printf("Enter page size: ");
+            scanf("%d", &page_size);
+
+            printf("Enter number of pages: ");
+            scanf("%d", &n);
+
+            printf("Enter frame number for each page:\n");
+            for (i = 0; i < n; i++)
+            {
+                printf("Page %d -> Frame: ", i);
+                scanf("%d", &page_table[i]);
+            }
+
+            printf("Enter logical address: ");
+            scanf("%d", &logical_address);
+
+            page_no = logical_address / page_size;
+            offset = logical_address % page_size;
+
+            printf("\nPage number = %d\n", page_no);
+            printf("Offset      = %d\n", offset);
+
+            if (page_no >= n)
+            {
+                printf("Invalid logical address. Page not found.\n");
+            }
+            else
+            {
+                frame_no = page_table[page_no];
+                physical_address = frame_no * page_size + offset;
+
+                printf("Frame number     = %d\n", frame_no);
+                printf("Physical address = %d\n", physical_address);
+            }
+        }
+
+        else if (ch == 2)
+        {
+            int n, i;
+            int base[100], limit[100];
+            int seg_no, offset, physical_address;
+
+            printf("\n--- Segmentation ---\n");
+            printf("Enter number of segments: ");
+            scanf("%d", &n);
+
+            printf("Enter base and limit for each segment:\n");
+            for (i = 0; i < n; i++)
+            {
+                printf("Segment %d base: ", i);
+                scanf("%d", &base[i]);
+
+                printf("Segment %d limit: ", i);
+                scanf("%d", &limit[i]);
+            }
+
+            printf("Enter segment number: ");
+            scanf("%d", &seg_no);
+
+            printf("Enter offset: ");
+            scanf("%d", &offset);
+
+            if (seg_no >= n)
+            {
+                printf("Invalid segment number.\n");
+            }
+            else if (offset >= limit[seg_no])
+            {
+                printf("Invalid address. Offset exceeds limit.\n");
+            }
+            else
+            {
+                physical_address = base[seg_no] + offset;
+
+                printf("\nBase   = %d\n", base[seg_no]);
+                printf("Offset = %d\n", offset);
+                printf("Physical address = %d\n", physical_address);
+            }
+        }
+
+        else if (ch == 3)
+        {
+            printf("Exiting...\n");
+        }
+
+        else
+        {
+            printf("Invalid choice.\n");
+        }
+
+    } while (ch != 3);
+
+    return 0;
+}
